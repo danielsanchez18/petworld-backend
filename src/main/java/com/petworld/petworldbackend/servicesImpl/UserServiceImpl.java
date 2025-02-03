@@ -7,6 +7,7 @@ import com.petworld.petworldbackend.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -20,6 +21,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     private void validateUserUniqueness(String email, String phoneNumber) throws DuplicateResourceException {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateResourceException("El correo electrónico ya está registrado");
@@ -32,6 +36,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public User saveUser(User user) throws DuplicateResourceException {
         validateUserUniqueness(user.getEmail(), user.getPhone());
+
+        // Encriptar la contraseña antes de guardar
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+
         user.setCreatedAt(new Date());
         return userRepository.save(user);
     }
@@ -91,9 +99,13 @@ public class UserServiceImpl implements UserService {
         existingUser.setLastname(user.getLastname());
         existingUser.setEmail(user.getEmail());
         existingUser.setPhone(user.getPhone());
-        existingUser.setPassword(user.getPassword());
         existingUser.setUpdatedAt(new Date());
         existingUser.setEnabled(user.isEnabled());
+
+        // Encriptar la contraseña solo si se proporciona una nueva
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
 
         return userRepository.save(existingUser);
     }

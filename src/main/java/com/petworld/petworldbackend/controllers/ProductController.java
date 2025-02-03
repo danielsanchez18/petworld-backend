@@ -1,6 +1,7 @@
 package com.petworld.petworldbackend.controllers;
 
 import com.petworld.petworldbackend.models.Product;
+import com.petworld.petworldbackend.services.FileStorageService;
 import com.petworld.petworldbackend.services.ProductService;
 import com.petworld.petworldbackend.utils.ResponseUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,8 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,9 +25,20 @@ public class ProductController {
     @Autowired
     private ProductService productService;
 
-    @PostMapping("/save")
-    public ResponseEntity<?> saveProduct(@RequestBody Product product) {
+    @Autowired
+    private FileStorageService fileStorageService;
+
+    @PostMapping(value = "/save", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> saveProduct(
+            @RequestBody Product product,
+            @RequestPart("image") MultipartFile image
+    ) {
         try {
+            // Guarda la imagen y obtiene la ruta
+            String imagePath = fileStorageService.storeFile(image);
+            product.setImage(imagePath); // Asigna la ruta al producto
+
+            // Guarda el producto en la base de datos
             Product createdProduct = productService.saveProduct(product);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ResponseUtil.successResponse("Producto creado exitosamente", createdProduct));
@@ -142,9 +156,18 @@ public class ProductController {
         }
     }
 
-    @PutMapping("/update/{idProduct}")
-    public ResponseEntity<?> updateProduct(@PathVariable UUID idProduct, @RequestBody Product product) {
+    @PutMapping(value = "/update/{idProduct}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateProduct(
+            @PathVariable UUID idProduct,
+            @RequestPart("product") Product product,
+            @RequestPart("image") MultipartFile image
+    ) {
         try {
+            // Guarda la nueva imagen y obtiene la ruta
+            String imagePath = fileStorageService.storeFile(image);
+            product.setImage(imagePath); // Asigna la ruta al producto
+
+            // Actualiza el producto en la base de datos
             Product updatedProduct = productService.updateProduct(idProduct, product);
             return ResponseEntity.ok(ResponseUtil.successResponse("Producto actualizado exitosamente", updatedProduct));
         } catch (RuntimeException ex) {
